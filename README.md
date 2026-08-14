@@ -45,9 +45,11 @@ linked Facebook Page is *not* required — this app uses Meta's direct
    track (only accounts you add here can authorize the app while it's in
    Development mode).
 4. Under **"3. Set up Instagram business login"**, click **Set up** and add
-   this as the redirect URI:
+   this as the redirect URI. Note the **`https`** — Instagram's login
+   product rejects plain `http://localhost` redirect URIs, which is why
+   `npm run dev` (below) runs over HTTPS locally:
    ```
-   http://localhost:3000/api/auth/instagram/callback
+   https://localhost:3000/api/auth/instagram/callback
    ```
 5. On that same setup screen, copy the **Instagram App ID** and **Instagram
    App Secret** — these are separate from the App ID/Secret shown at the top
@@ -71,10 +73,12 @@ npx prisma migrate deploy   # creates prisma/dev.db
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000), click **Connect
-Instagram**, and authorize the app. You'll be sent through Instagram's own
-login/authorization dialog. Once connected, click **Refresh now** to pull
-your first snapshot.
+Open [https://localhost:3000](https://localhost:3000) — your browser will
+warn about the self-signed certificate ("Your connection isn't private" or
+similar); click **Advanced → Proceed to localhost** to continue, this is
+expected for local HTTPS dev. Then click **Connect Instagram** and
+authorize the app through Instagram's own login dialog. Once connected,
+click **Refresh now** to pull your first snapshot.
 
 Click **Refresh now** any time afterwards to capture a new snapshot — that's
 the only network activity this app ever does; nothing runs in the
