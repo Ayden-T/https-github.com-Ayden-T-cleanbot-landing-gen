@@ -141,6 +141,9 @@ export function Dashboard() {
   const weekday = weekdayPerformance(media);
   const hashtags = topHashtags(media, 8);
   const countries = latestSnapshot ? topEntries(parseBreakdown(latestSnapshot.followerCountryJson), 6) : [];
+  const cities = latestSnapshot ? topEntries(parseBreakdown(latestSnapshot.followerCityJson), 6) : [];
+  const ages = latestSnapshot ? topEntries(parseBreakdown(latestSnapshot.followerAgeJson), 8) : [];
+  const genders = latestSnapshot ? topEntries(parseBreakdown(latestSnapshot.followerGenderJson), 4) : [];
 
   function followerDelta() {
     if (!latestSnapshot || !previousSnapshot) return null;
@@ -256,6 +259,18 @@ export function Dashboard() {
               label="Reach (last 30d)"
               value={latestSnapshot.reach != null ? latestSnapshot.reach.toLocaleString() : "–"}
             />
+            <StatCard
+              label="Profile views (30d)"
+              value={latestSnapshot.profileViews != null ? latestSnapshot.profileViews.toLocaleString() : "–"}
+            />
+            <StatCard
+              label="Accounts engaged (30d)"
+              value={latestSnapshot.accountsEngaged != null ? latestSnapshot.accountsEngaged.toLocaleString() : "–"}
+            />
+            <StatCard
+              label="Website clicks (30d)"
+              value={latestSnapshot.websiteClicks != null ? latestSnapshot.websiteClicks.toLocaleString() : "–"}
+            />
           </section>
 
           <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
@@ -311,18 +326,37 @@ export function Dashboard() {
             <WeekdayChart data={weekday} mode={mode} />
           </section>
 
-          <section className="grid gap-6 sm:grid-cols-2">
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
-              <h2 className="mb-3 text-lg font-medium">Top hashtags by engagement</h2>
-              <HorizontalBarList
-                items={hashtags.map((h) => ({ label: h.tag, value: h.avgEngagementRate ?? 0, sublabel: `${h.count}×` }))}
-                mode={mode}
-                formatValue={formatPercent}
-              />
-            </div>
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
-              <h2 className="mb-3 text-lg font-medium">Where your followers are</h2>
-              <HorizontalBarList items={countries} mode={mode} />
+          <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <h2 className="mb-3 text-lg font-medium">Top hashtags by engagement</h2>
+            <HorizontalBarList
+              items={hashtags.map((h) => ({ label: h.tag, value: h.avgEngagementRate ?? 0, sublabel: `${h.count}×` }))}
+              mode={mode}
+              formatValue={formatPercent}
+            />
+          </section>
+
+          <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <h2 className="mb-1 text-lg font-medium">Follower demographics</h2>
+            <p className="mb-4 text-xs text-[var(--muted)]">
+              From Instagram&apos;s audience insights - requires enough followers for Meta to disclose a breakdown.
+            </p>
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div>
+                <h3 className="mb-2 text-sm font-medium text-[var(--text-secondary)]">Country</h3>
+                <HorizontalBarList items={countries} mode={mode} />
+              </div>
+              <div>
+                <h3 className="mb-2 text-sm font-medium text-[var(--text-secondary)]">City</h3>
+                <HorizontalBarList items={cities} mode={mode} />
+              </div>
+              <div>
+                <h3 className="mb-2 text-sm font-medium text-[var(--text-secondary)]">Age</h3>
+                <HorizontalBarList items={ages} mode={mode} />
+              </div>
+              <div>
+                <h3 className="mb-2 text-sm font-medium text-[var(--text-secondary)]">Gender</h3>
+                <HorizontalBarList items={genders} mode={mode} />
+              </div>
             </div>
           </section>
         </>
