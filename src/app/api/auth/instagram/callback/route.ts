@@ -43,21 +43,24 @@ export async function GET(request: NextRequest) {
     );
     const longLived = await exchangeForLongLivedToken(config.appSecret, shortLived.access_token);
 
-    const profile = await getProfile(shortLived.user_id, longLived.access_token);
+    // The numeric `user_id` from the token exchange isn't reliably the same
+    // ID graph.instagram.com expects for direct object lookups - resolve
+    // the canonical id via `/me` instead, as Meta's own docs do.
+    const profile = await getProfile("me", longLived.access_token);
 
     const expiresAt = new Date(Date.now() + longLived.expires_in * 1000);
     await db.settings.upsert({
       where: { id: 1 },
       create: {
         id: 1,
-        igUserId: shortLived.user_id,
+        igUserId: profile.id,
         username: profile.username,
         accessToken: longLived.access_token,
         tokenExpiresAt: expiresAt,
         connectedAt: new Date(),
       },
       update: {
-        igUserId: shortLived.user_id,
+        igUserId: profile.id,
         username: profile.username,
         accessToken: longLived.access_token,
         tokenExpiresAt: expiresAt,
