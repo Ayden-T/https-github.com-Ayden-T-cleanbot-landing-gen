@@ -53,7 +53,7 @@ export async function POST() {
       },
     });
 
-    const media = await listRecentMedia(igUserId, accessToken, 50);
+    const media = await listRecentMedia(igUserId, accessToken);
 
     await mapLimit(media, 5, async (item) => {
       await db.media.upsert({

@@ -226,20 +226,39 @@ interface MediaListResponse {
   paging?: { next?: string };
 }
 
-// Pulls up to `limit` most recent posts/reels (skips Stories, which expire
-// after 24h and aren't meaningful for a historical dashboard).
+// Walks every page of the account's media history (skips Stories, which
+// expire after 24h and aren't meaningful for a historical dashboard).
+// `maxItems` is a safety ceiling, not a normal limit - it only kicks in for
+// unusually large accounts so a refresh can't run away indefinitely.
 export async function listRecentMedia(
   igUserId: string,
   accessToken: string,
-  limit = 50,
+  maxItems = 2000,
 ): Promise<InstagramMediaItem[]> {
-  const res = await graphGet<MediaListResponse>(`/${igUserId}/media`, {
-    fields:
-      "id,caption,media_type,media_product_type,permalink,thumbnail_url,timestamp,like_count,comments_count",
-    limit: String(limit),
-    access_token: accessToken,
-  });
-  return res.data.filter((m) => m.media_product_type !== "STORY");
+  const first = new URL(`${GRAPH_BASE}/${igUserId}/media`);
+  first.searchParams.set(
+    "fields",
+    "id,caption,media_type,media_product_type,permalink,thumbnail_url,timestamp,like_count,comments_count",
+  );
+  first.searchParams.set("limit", "50");
+  first.searchParams.set("access_token", accessToken);
+
+  const results: InstagramMediaItem[] = [];
+  let nextUrl: string | undefined = first.toString();
+
+  while (nextUrl && results.length < maxItems) {
+    const res = await fetch(nextUrl);
+    const body = await res.json();
+    if (!res.ok) {
+      const message = body?.error?.message ?? `Graph API request failed (${res.status})`;
+      throw new InstagramApiError(message, res.status, body);
+    }
+    const page = body as MediaListResponse;
+    results.push(...page.data);
+    nextUrl = page.paging?.next;
+  }
+
+  return results.slice(0, maxItems).filter((m) => m.media_product_type !== "STORY");
 }
 
 export interface MediaInsights {
