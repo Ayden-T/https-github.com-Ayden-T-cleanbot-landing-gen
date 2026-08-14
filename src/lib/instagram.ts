@@ -272,16 +272,62 @@ export interface MediaInsights {
   totalInteractions: number | null;
 }
 
-// Metric availability differs by media type; request a type-appropriate set
-// and fall back gracefully if a specific metric errors out.
+// Core engagement metrics have stable names across API versions and apply
+// to both feed posts and reels - always request these on their own so a
+// naming problem elsewhere can't null them all out.
+const CORE_METRICS = ["reach", "likes", "comments", "shares", "saved", "total_interactions"] as const;
+
+// Reels-only view/watch-time metrics have been renamed across Graph API
+// versions (plays -> views, ig_reels_avg_watch_time -> avg_watch_time).
+// Try the current names first, then fall back to the older ones, so a
+// rename doesn't silently zero out ranking data.
+const REEL_METRIC_ATTEMPTS: readonly [playsMetric: string, watchMetric: string][] = [
+  ["views", "avg_watch_time"],
+  ["plays", "ig_reels_avg_watch_time"],
+];
+
+function applyInsightValues(result: MediaInsights, data: InsightValue[]) {
+  for (const item of data) {
+    const value = item.values?.[0]?.value ?? null;
+    switch (item.name) {
+      case "reach":
+        result.reach = value;
+        break;
+      case "likes":
+        result.likeCount = value;
+        break;
+      case "comments":
+        result.commentsCount = value;
+        break;
+      case "shares":
+        result.sharesCount = value;
+        break;
+      case "saved":
+        result.savedCount = value;
+        break;
+      case "total_interactions":
+        result.totalInteractions = value;
+        break;
+      case "plays":
+      case "views":
+        result.playsCount = value;
+        break;
+      case "ig_reels_avg_watch_time":
+      case "avg_watch_time":
+        result.avgWatchTimeMs = value;
+        break;
+    }
+  }
+}
+
+// Metric availability and naming differ by media type and API version;
+// requests are split so one unsupported/renamed metric can't null out
+// everything else for that post.
 export async function getMediaInsights(
   media: InstagramMediaItem,
   accessToken: string,
 ): Promise<MediaInsights> {
   const isReel = media.media_product_type === "REELS";
-  const metrics = isReel
-    ? ["reach", "likes", "comments", "shares", "saved", "plays", "total_interactions", "ig_reels_avg_watch_time"]
-    : ["reach", "likes", "comments", "shares", "saved", "total_interactions"];
 
   const result: MediaInsights = {
     reach: null,
@@ -296,42 +342,29 @@ export async function getMediaInsights(
 
   try {
     const res = await graphGet<InsightsResponse>(`/${media.id}/insights`, {
-      metric: metrics.join(","),
+      metric: CORE_METRICS.join(","),
       access_token: accessToken,
     });
-    for (const item of res.data) {
-      const value = item.values?.[0]?.value ?? null;
-      switch (item.name) {
-        case "reach":
-          result.reach = value;
-          break;
-        case "likes":
-          result.likeCount = value;
-          break;
-        case "comments":
-          result.commentsCount = value;
-          break;
-        case "shares":
-          result.sharesCount = value;
-          break;
-        case "saved":
-          result.savedCount = value;
-          break;
-        case "plays":
-          result.playsCount = value;
-          break;
-        case "total_interactions":
-          result.totalInteractions = value;
-          break;
-        case "ig_reels_avg_watch_time":
-          result.avgWatchTimeMs = value;
-          break;
+    applyInsightValues(result, res.data);
+  } catch {
+    // Some media don't support the full core set (e.g. an old post from
+    // before the account was Business). Keep whatever defaults we already
+    // had from the media list fields.
+  }
+
+  if (isReel) {
+    for (const [playsMetric, watchMetric] of REEL_METRIC_ATTEMPTS) {
+      try {
+        const res = await graphGet<InsightsResponse>(`/${media.id}/insights`, {
+          metric: `${playsMetric},${watchMetric}`,
+          access_token: accessToken,
+        });
+        applyInsightValues(result, res.data);
+        break;
+      } catch {
+        // Try the next metric-name generation.
       }
     }
-  } catch {
-    // Some accounts/media don't support the full metric set (e.g. an old
-    // post from before the account was Business). Keep whatever defaults
-    // we already had from the media list fields.
   }
 
   return result;

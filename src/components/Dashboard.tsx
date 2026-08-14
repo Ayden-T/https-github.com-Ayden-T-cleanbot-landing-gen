@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import {
+  RANK_METRIC_LABELS,
   bestPerforming,
   formatComparison,
   isReel,
@@ -12,6 +13,7 @@ import {
   topHashtags,
   weekdayPerformance,
   type MediaWithLatest,
+  type RankMetric,
   type SnapshotLike,
 } from "@/lib/analytics";
 import { buildDemoData } from "@/lib/demoData";
@@ -39,6 +41,42 @@ function formatCompact(v: number) {
   return Math.round(v).toLocaleString();
 }
 
+const REEL_RANK_METRICS: RankMetric[] = [
+  "plays",
+  "watchTime",
+  "reach",
+  "engagementRate",
+  "likes",
+  "comments",
+  "shares",
+  "saved",
+];
+const POST_RANK_METRICS: RankMetric[] = ["reach", "engagementRate", "likes", "comments", "shares", "saved"];
+
+function RankMetricSelect({
+  value,
+  options,
+  onChange,
+}: {
+  value: RankMetric;
+  options: RankMetric[];
+  onChange: (metric: RankMetric) => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as RankMetric)}
+      className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-xs text-[var(--text-secondary)]"
+    >
+      {options.map((m) => (
+        <option key={m} value={m}>
+          Sort by {RANK_METRIC_LABELS[m]}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export function Dashboard() {
   const mode = useColorScheme();
   const searchParams = useSearchParams();
@@ -49,6 +87,8 @@ export function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [demoMode, setDemoMode] = useState(false);
+  const [reelsMetric, setReelsMetric] = useState<RankMetric>("plays");
+  const [postsMetric, setPostsMetric] = useState<RankMetric>("reach");
 
   async function loadData() {
     const res = await fetch("/api/data", { cache: "no-store" });
@@ -95,8 +135,8 @@ export function Dashboard() {
   const latestSnapshot = snapshots[snapshots.length - 1];
   const previousSnapshot = snapshots[snapshots.length - 2];
 
-  const bestReels = bestPerforming(media, isReel, 5);
-  const bestPosts = bestPerforming(media, (m) => !isReel(m), 5);
+  const bestReels = bestPerforming(media, isReel, reelsMetric, 5);
+  const bestPosts = bestPerforming(media, (m) => !isReel(m), postsMetric, 5);
   const formats = formatComparison(media);
   const weekday = weekdayPerformance(media);
   const hashtags = topHashtags(media, 8);
@@ -225,12 +265,18 @@ export function Dashboard() {
 
           <section className="grid gap-6 sm:grid-cols-2">
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
-              <h2 className="mb-3 text-lg font-medium">Best performing reels</h2>
-              <MediaList items={bestReels} />
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="text-lg font-medium">Best performing reels</h2>
+                <RankMetricSelect value={reelsMetric} options={REEL_RANK_METRICS} onChange={setReelsMetric} />
+              </div>
+              <MediaList items={bestReels} metric={reelsMetric} />
             </div>
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
-              <h2 className="mb-3 text-lg font-medium">Best performing posts</h2>
-              <MediaList items={bestPosts} />
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="text-lg font-medium">Best performing posts</h2>
+                <RankMetricSelect value={postsMetric} options={POST_RANK_METRICS} onChange={setPostsMetric} />
+              </div>
+              <MediaList items={bestPosts} metric={postsMetric} />
             </div>
           </section>
 

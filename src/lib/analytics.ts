@@ -50,15 +50,60 @@ export function engagementRate(m: MediaWithLatest): number | null {
   return interactions / s.reach;
 }
 
-export function bestPerforming(media: MediaWithLatest[], filter: (m: MediaWithLatest) => boolean, take = 5) {
+export type RankMetric =
+  | "plays"
+  | "reach"
+  | "engagementRate"
+  | "likes"
+  | "comments"
+  | "shares"
+  | "saved"
+  | "watchTime";
+
+export const RANK_METRIC_LABELS: Record<RankMetric, string> = {
+  plays: "Plays",
+  reach: "Reach",
+  engagementRate: "Engagement rate",
+  likes: "Likes",
+  comments: "Comments",
+  shares: "Shares",
+  saved: "Saves",
+  watchTime: "Avg. watch time",
+};
+
+export function rankValue(m: MediaWithLatest, metric: RankMetric): number {
+  const s = m.latest;
+  if (!s) return 0;
+  switch (metric) {
+    case "plays":
+      return s.playsCount ?? 0;
+    case "reach":
+      return s.reach ?? 0;
+    case "engagementRate":
+      return engagementRate(m) ?? 0;
+    case "likes":
+      return s.likeCount ?? 0;
+    case "comments":
+      return s.commentsCount ?? 0;
+    case "shares":
+      return s.sharesCount ?? 0;
+    case "saved":
+      return s.savedCount ?? 0;
+    case "watchTime":
+      return s.avgWatchTimeMs ?? 0;
+  }
+}
+
+export function bestPerforming(
+  media: MediaWithLatest[],
+  filter: (m: MediaWithLatest) => boolean,
+  metric: RankMetric,
+  take = 5,
+) {
   return media
     .filter(filter)
     .filter((m) => m.latest)
-    .sort((a, b) => {
-      const rankA = a.latest?.playsCount ?? a.latest?.reach ?? 0;
-      const rankB = b.latest?.playsCount ?? b.latest?.reach ?? 0;
-      return rankB - rankA;
-    })
+    .sort((a, b) => rankValue(b, metric) - rankValue(a, metric))
     .slice(0, take);
 }
 
