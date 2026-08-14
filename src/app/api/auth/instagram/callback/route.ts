@@ -4,7 +4,6 @@ import { getInstagramAppConfig } from "@/lib/env";
 import {
   exchangeCodeForToken,
   exchangeForLongLivedToken,
-  findLinkedInstagramAccount,
   getProfile,
   InstagramApiError,
 } from "@/lib/instagram";
@@ -42,39 +41,25 @@ export async function GET(request: NextRequest) {
       config.redirectUri,
       code,
     );
-    const longLived = await exchangeForLongLivedToken(
-      config.appId,
-      config.appSecret,
-      shortLived.access_token,
-    );
+    const longLived = await exchangeForLongLivedToken(config.appSecret, shortLived.access_token);
 
-    const linked = await findLinkedInstagramAccount(longLived.access_token);
-    if (!linked) {
-      return redirectWithError(
-        request,
-        "No Instagram Business/Creator account linked to any of your Facebook Pages was found.",
-      );
-    }
-
-    const profile = await getProfile(linked.igUserId, linked.pageAccessToken);
+    const profile = await getProfile(shortLived.user_id, longLived.access_token);
 
     const expiresAt = new Date(Date.now() + longLived.expires_in * 1000);
     await db.settings.upsert({
       where: { id: 1 },
       create: {
         id: 1,
-        igUserId: linked.igUserId,
+        igUserId: shortLived.user_id,
         username: profile.username,
-        pageId: linked.pageId,
-        accessToken: linked.pageAccessToken,
+        accessToken: longLived.access_token,
         tokenExpiresAt: expiresAt,
         connectedAt: new Date(),
       },
       update: {
-        igUserId: linked.igUserId,
+        igUserId: shortLived.user_id,
         username: profile.username,
-        pageId: linked.pageId,
-        accessToken: linked.pageAccessToken,
+        accessToken: longLived.access_token,
         tokenExpiresAt: expiresAt,
         connectedAt: new Date(),
       },

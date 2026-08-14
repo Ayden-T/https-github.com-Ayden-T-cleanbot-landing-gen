@@ -1,8 +1,10 @@
-// Thin client around the Instagram Graph API (Business/Creator accounts only).
-// Docs: https://developers.facebook.com/docs/instagram-platform/instagram-graph-api
+// Thin client around the Instagram API with Instagram Login (Business/Creator
+// accounts only). This is Meta's direct-Instagram OAuth product - no Facebook
+// Page or Facebook Login is involved.
+// Docs: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login
 
 const GRAPH_VERSION = "v21.0";
-const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
+const GRAPH_BASE = `https://graph.instagram.com/${GRAPH_VERSION}`;
 
 export class InstagramApiError extends Error {
   constructor(
@@ -33,43 +35,53 @@ async function graphGet<T>(
 }
 
 export function getOAuthDialogUrl(appId: string, redirectUri: string, state: string) {
-  const url = new URL(`https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth`);
+  const url = new URL("https://www.instagram.com/oauth/authorize");
   url.searchParams.set("client_id", appId);
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("state", state);
   url.searchParams.set("response_type", "code");
-  // instagram_basic + instagram_manage_insights: read profile/media/insights.
-  // pages_show_list + pages_read_engagement: required to resolve the Page
-  // that the Instagram Business account is linked to.
+  // instagram_business_basic: read profile/media.
+  // instagram_business_manage_insights: read account + media insights.
   url.searchParams.set(
     "scope",
-    [
-      "instagram_basic",
-      "instagram_manage_insights",
-      "pages_show_list",
-      "pages_read_engagement",
-    ].join(","),
+    ["instagram_business_basic", "instagram_business_manage_insights"].join(","),
   );
   return url.toString();
 }
 
 interface ShortLivedTokenResponse {
   access_token: string;
-  token_type: string;
+  user_id: string;
+  permissions: string[];
 }
 
+// Instagram Login's initial code exchange lives on a different host
+// (api.instagram.com) and is a POST with a form body, unlike everything
+// else in this file.
 export async function exchangeCodeForToken(
   appId: string,
   appSecret: string,
   redirectUri: string,
   code: string,
 ) {
-  return graphGet<ShortLivedTokenResponse>("/oauth/access_token", {
+  const body = new URLSearchParams({
     client_id: appId,
     client_secret: appSecret,
+    grant_type: "authorization_code",
     redirect_uri: redirectUri,
     code,
   });
+  const res = await fetch("https://api.instagram.com/oauth/access_token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    const message = json?.error_message ?? json?.error?.message ?? `Token exchange failed (${res.status})`;
+    throw new InstagramApiError(message, res.status, json);
+  }
+  return json as ShortLivedTokenResponse;
 }
 
 interface LongLivedTokenResponse {
@@ -78,48 +90,12 @@ interface LongLivedTokenResponse {
   expires_in: number; // seconds, ~60 days
 }
 
-export async function exchangeForLongLivedToken(
-  appId: string,
-  appSecret: string,
-  shortLivedToken: string,
-) {
-  return graphGet<LongLivedTokenResponse>("/oauth/access_token", {
-    grant_type: "fb_exchange_token",
-    client_id: appId,
+export async function exchangeForLongLivedToken(appSecret: string, shortLivedToken: string) {
+  return graphGet<LongLivedTokenResponse>("/access_token", {
+    grant_type: "ig_exchange_token",
     client_secret: appSecret,
-    fb_exchange_token: shortLivedToken,
+    access_token: shortLivedToken,
   });
-}
-
-interface FacebookPage {
-  id: string;
-  name: string;
-  access_token: string;
-  instagram_business_account?: { id: string };
-}
-
-interface PagesResponse {
-  data: FacebookPage[];
-}
-
-// A personal account only has one or two Pages; take the first one that has
-// an Instagram Business/Creator account linked to it.
-export async function findLinkedInstagramAccount(userAccessToken: string) {
-  const pages = await graphGet<PagesResponse>("/me/accounts", {
-    fields: "id,name,access_token,instagram_business_account",
-    access_token: userAccessToken,
-  });
-
-  for (const page of pages.data) {
-    if (page.instagram_business_account) {
-      return {
-        pageId: page.id,
-        pageAccessToken: page.access_token,
-        igUserId: page.instagram_business_account.id,
-      };
-    }
-  }
-  return null;
 }
 
 export interface InstagramProfile {

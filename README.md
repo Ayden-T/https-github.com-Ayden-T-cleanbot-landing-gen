@@ -26,43 +26,35 @@ can see the whole layout filled in before connecting a real account.
 ## Requirements
 
 Instagram's real analytics (insights, demographics, reel performance) are
-only available through the **Instagram Graph API**, which has two
-requirements that the old "Instagram Basic Display" login doesn't:
-
-1. Your Instagram account must be a **Business or Creator account**
-   (Settings → Account type in the Instagram app).
-2. It must be **linked to a Facebook Page** that you're an admin of.
-
-If you haven't done this yet:
-
-1. Open the Instagram app → **Settings and privacy** → **Account type and
-   tools** → switch to **Professional account** → choose **Business** or
-   **Creator**.
-2. During that flow (or afterwards under **Settings → Account →
-   Sharing to other apps → Facebook**), link the account to a Facebook
-   Page. If you don't have a Page yet, you can create one for free at
-   [facebook.com/pages/create](https://www.facebook.com/pages/create).
+only available once your account is a **Business or Creator account**
+(Instagram app → **Settings and privacy** → **Account type and tools** →
+switch to **Professional account** → choose **Business** or **Creator**). A
+linked Facebook Page is *not* required — this app uses Meta's direct
+**Instagram API with Instagram Login**, not the older Facebook Login flow.
 
 ## One-time setup: create a Meta Developer App
 
 1. Go to [developers.facebook.com/apps](https://developers.facebook.com/apps)
    and click **Create App**. Choose the **"Other"** use case, then app type
-   **"Business"**.
+   **"Business"** — this matters, the Instagram product isn't available on
+   **Consumer**-type apps.
 2. In your new app's dashboard, click **Add Product** and set up
-   **Instagram** (Instagram Graph API) and **Facebook Login**.
-3. Under **App settings → Basic**, copy the **App ID** and **App Secret** —
-   you'll need these below.
-4. Under **Facebook Login → Settings**, add this to **Valid OAuth Redirect
-   URIs**:
+   **Instagram**.
+3. In the Instagram product's setup page, under **"1. Instagram account"**,
+   click **Add account** and connect the Instagram account you want to
+   track (only accounts you add here can authorize the app while it's in
+   Development mode).
+4. Under **"3. Set up Instagram business login"**, click **Set up** and add
+   this as the redirect URI:
    ```
    http://localhost:3000/api/auth/instagram/callback
    ```
-5. Under **App roles → Roles**, add your own Facebook account as an **Admin**
-   (or **Tester**, while the app is in Development mode) so you're allowed
-   to authorize it. While the app is in Development mode, only accounts
-   added as Admin/Developer/Tester can connect — which is exactly what you
-   want for a personal dashboard, so there's no need to submit it for App
-   Review.
+5. On that same setup screen, copy the **Instagram App ID** and **Instagram
+   App Secret** — these are separate from the App ID/Secret shown at the top
+   of the main dashboard, and are the ones this app needs.
+6. Skip **"2. Configure webhooks"** and **"4. Complete app review"** — this
+   app doesn't use webhooks, and App Review is only needed to let *other*
+   people's accounts connect, not your own while in Development mode.
 
 ## Running it locally
 
@@ -71,8 +63,8 @@ npm install
 
 cp .env.example .env
 # then edit .env and fill in:
-#   INSTAGRAM_APP_ID=<your App ID>
-#   INSTAGRAM_APP_SECRET=<your App Secret>
+#   INSTAGRAM_APP_ID=<your Instagram App ID>
+#   INSTAGRAM_APP_SECRET=<your Instagram App Secret>
 
 npx prisma migrate deploy   # creates prisma/dev.db
 
@@ -80,10 +72,9 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000), click **Connect
-Instagram**, and authorize the app. You'll be sent through Facebook's login
-dialog (this is expected — the Instagram Graph API is accessed via your
-linked Facebook Page). Once connected, click **Refresh now** to pull your
-first snapshot.
+Instagram**, and authorize the app. You'll be sent through Instagram's own
+login/authorization dialog. Once connected, click **Refresh now** to pull
+your first snapshot.
 
 Click **Refresh now** any time afterwards to capture a new snapshot — that's
 the only network activity this app ever does; nothing runs in the
