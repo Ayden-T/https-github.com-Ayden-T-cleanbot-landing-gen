@@ -34,6 +34,7 @@ export interface SnapshotLike {
   followerCityJson: string | null;
   followerAgeJson: string | null;
   followerGenderJson: string | null;
+  onlineFollowersJson: string | null;
 }
 
 export function isReel(m: MediaWithLatest) {
@@ -214,4 +215,63 @@ export function countryLabel(code: string): string {
   } catch {
     return code;
   }
+}
+
+export interface HourlyPoint {
+  hour: number;
+  label: string;
+  value: number;
+}
+
+function formatHour(hour: number): string {
+  const period = hour < 12 ? "AM" : "PM";
+  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+  return `${displayHour} ${period}`;
+}
+
+// Fills in all 24 hours (account's local time) in chronological order, so
+// gaps read as zero rather than being skipped.
+export function onlineFollowersSeries(json: string | null): HourlyPoint[] {
+  const breakdown = parseBreakdown(json);
+  return Array.from({ length: 24 }, (_, hour) => ({
+    hour,
+    label: formatHour(hour),
+    value: breakdown?.[String(hour)] ?? 0,
+  }));
+}
+
+export interface PostingFrequencyPoint {
+  fromDate: string;
+  toDate: string;
+  postsCount: number;
+  followerDelta: number;
+}
+
+// Pairs each refresh interval (between two consecutive snapshots) with how
+// many posts/reels went out in that window and how followers changed over
+// it - a table rather than a chart, since post counts and follower deltas
+// are different units and don't belong on one axis together.
+export function postingFrequencyVsGrowth(
+  snapshots: SnapshotLike[],
+  media: MediaWithLatest[],
+  take = 12,
+): PostingFrequencyPoint[] {
+  const points: PostingFrequencyPoint[] = [];
+  for (let i = 1; i < snapshots.length; i++) {
+    const from = snapshots[i - 1];
+    const to = snapshots[i];
+    const fromTime = new Date(from.takenAt).getTime();
+    const toTime = new Date(to.takenAt).getTime();
+    const postsCount = media.filter((m) => {
+      const t = new Date(m.timestamp).getTime();
+      return t > fromTime && t <= toTime;
+    }).length;
+    points.push({
+      fromDate: from.takenAt,
+      toDate: to.takenAt,
+      postsCount,
+      followerDelta: to.followersCount - from.followersCount,
+    });
+  }
+  return points.reverse().slice(0, take);
 }

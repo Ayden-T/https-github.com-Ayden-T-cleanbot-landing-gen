@@ -43,6 +43,10 @@ model Snapshot {
   followerAgeJson     String?
   followerGenderJson  String?
 
+  // Hour-of-day (account's local time, "0".."23") -> follower count online
+  // at that hour, e.g. {"0":120,"1":95,...,"23":140}.
+  onlineFollowersJson String?
+
   mediaSnapshots MediaSnapshot[]
 
   @@index([takenAt])

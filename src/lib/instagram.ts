@@ -209,6 +209,28 @@ export async function getFollowerBreakdown(
   }
 }
 
+// "When your followers are online" - hour-of-day (account's local time,
+// keys "0".."23") -> follower count online at that hour. This reflects
+// audience presence, distinct from when you've historically posted.
+export async function getOnlineFollowers(
+  igUserId: string,
+  accessToken: string,
+): Promise<Record<string, number> | null> {
+  try {
+    interface OnlineFollowersResponse {
+      data: { values: { value: Record<string, number> }[] }[];
+    }
+    const res = await graphGet<OnlineFollowersResponse>(`/${igUserId}/insights`, {
+      metric: "online_followers",
+      period: "lifetime",
+      access_token: accessToken,
+    });
+    return res.data[0]?.values?.[0]?.value ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export interface InstagramMediaItem {
   id: string;
   caption?: string;

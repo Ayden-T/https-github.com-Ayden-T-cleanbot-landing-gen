@@ -41,6 +41,15 @@ export function buildDemoData(): { snapshots: SnapshotLike[]; media: MediaWithLa
         "13-17": 90,
       }),
       followerGenderJson: JSON.stringify({ Female: 2600, Male: 1550, Unknown: 50 }),
+      onlineFollowersJson: JSON.stringify(
+        Object.fromEntries(
+          Array.from({ length: 24 }, (_, hour) => {
+            // Rough double-hump curve: a lunchtime bump and a bigger evening peak.
+            const base = 40 + 220 * Math.exp(-((hour - 12) ** 2) / 18) + 340 * Math.exp(-((hour - 20) ** 2) / 10);
+            return [String(hour), Math.round(base)];
+          }),
+        ),
+      ),
     };
   });
 

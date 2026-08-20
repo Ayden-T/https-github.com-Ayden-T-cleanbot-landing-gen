@@ -5,6 +5,7 @@ import {
   getAccountInsights,
   getFollowerBreakdown,
   getMediaInsights,
+  getOnlineFollowers,
   getProfile,
   InstagramApiError,
   listRecentMedia,
@@ -28,13 +29,14 @@ export async function POST() {
   const { igUserId, accessToken } = settings;
 
   try {
-    const [profile, accountInsights, country, city, age, gender] = await Promise.all([
+    const [profile, accountInsights, country, city, age, gender, onlineFollowers] = await Promise.all([
       getProfile(igUserId, accessToken),
       getAccountInsights(igUserId, accessToken),
       getFollowerBreakdown(igUserId, accessToken, "country"),
       getFollowerBreakdown(igUserId, accessToken, "city"),
       getFollowerBreakdown(igUserId, accessToken, "age"),
       getFollowerBreakdown(igUserId, accessToken, "gender"),
+      getOnlineFollowers(igUserId, accessToken),
     ]);
 
     const snapshot = await db.snapshot.create({
@@ -50,6 +52,7 @@ export async function POST() {
         followerCityJson: city ? JSON.stringify(city) : null,
         followerAgeJson: age ? JSON.stringify(age) : null,
         followerGenderJson: gender ? JSON.stringify(gender) : null,
+        onlineFollowersJson: onlineFollowers ? JSON.stringify(onlineFollowers) : null,
       },
     });
 
