@@ -6,6 +6,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import {
   RANK_METRIC_LABELS,
   bestPerforming,
+  countryLabel,
   formatComparison,
   isReel,
   parseBreakdown,
@@ -140,7 +141,12 @@ export function Dashboard() {
   const formats = formatComparison(media);
   const weekday = weekdayPerformance(media);
   const hashtags = topHashtags(media, 8);
-  const countries = latestSnapshot ? topEntries(parseBreakdown(latestSnapshot.followerCountryJson), 6) : [];
+  const countries = latestSnapshot
+    ? topEntries(parseBreakdown(latestSnapshot.followerCountryJson), 6).map((c) => ({
+        ...c,
+        label: countryLabel(c.label),
+      }))
+    : [];
   const cities = latestSnapshot ? topEntries(parseBreakdown(latestSnapshot.followerCityJson), 6) : [];
   const ages = latestSnapshot ? topEntries(parseBreakdown(latestSnapshot.followerAgeJson), 8) : [];
   const genders = latestSnapshot ? topEntries(parseBreakdown(latestSnapshot.followerGenderJson), 4) : [];

@@ -198,3 +198,20 @@ export function topEntries(breakdown: Record<string, number> | null, take = 6) {
     .slice(0, take)
     .map(([label, value]) => ({ label, value }));
 }
+
+const countryDisplayNames =
+  typeof Intl !== "undefined" && "DisplayNames" in Intl
+    ? new Intl.DisplayNames(["en"], { type: "region" })
+    : null;
+
+// Instagram's follower_demographics "country" breakdown uses ISO 3166-1
+// alpha-2 codes (e.g. "US"). Expand those to full names for display;
+// anything that isn't a 2-letter code (e.g. demo data) passes through as-is.
+export function countryLabel(code: string): string {
+  if (!countryDisplayNames || !/^[A-Za-z]{2}$/.test(code)) return code;
+  try {
+    return countryDisplayNames.of(code.toUpperCase()) ?? code;
+  } catch {
+    return code;
+  }
+}
