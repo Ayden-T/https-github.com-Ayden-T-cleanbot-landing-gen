@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Single-row table holding the connected Instagram account's credentials.
+// A personal dashboard only ever tracks one account, so we key it as id = 1.
+model Settings {
+  id             Int       @id @default(1)
+  igUserId       String? // Instagram-scoped business account id
+  username       String?
+  pageId         String? // Linked Facebook Page id
+  accessToken    String? // Long-lived Page access token
+  tokenExpiresAt DateTime?
+  connectedAt    DateTime?
+  updatedAt      DateTime  @updatedAt
+}
+
+// One row per manual refresh: the account's stats at that moment in time.
+model Snapshot {
+  id      Int      @id @default(autoincrement())
+  takenAt DateTime @default(now())
+
+  followersCount Int
+  followsCount   Int
+  mediaCount     Int
+
+  // Rolling engagement/reach figures Instagram exposes at the account level.
+  profileViews    Int?
+  reach           Int?
+  accountsEngaged Int?
+  websiteClicks   Int?
+
+  // Follower demographic breakdowns, stored as JSON strings, e.g.
+  // {"US":1200,"GB":300} or {"18-24":500,"25-34":900}
+  followerCountryJson String?
+  followerCityJson    String?
+  followerAgeJson     String?
+  followerGenderJson  String?
+
+  // Hour-of-day (account's local time, "0".."23") -> follower count online
+  // at that hour, e.g. {"0":120,"1":95,...,"23":140}.
+  onlineFollowersJson String?
+
+  mediaSnapshots MediaSnapshot[]
+
+  @@index([takenAt])
+}
+
+// A post or reel, tracked once and updated with new snapshots over time.
+model Media {
+  id               String   @id // Instagram media id
+  mediaType        String // IMAGE | VIDEO | CAROUSEL_ALBUM
+  mediaProductType String? // FEED | REELS | STORY
+  caption          String?
+  permalink        String?
+  thumbnailUrl     String?
+  timestamp        DateTime // when it was posted
+
+  snapshots MediaSnapshot[]
+
+  @@index([timestamp])
+}
+
+// Per-refresh metrics for a single piece of media, so trends over time
+// (and "best performing") can be derived from history.
+model MediaSnapshot {
+  id         Int      @id @default(autoincrement())
+  mediaId    String
+  media      Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  snapshotId Int
+  snapshot   Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  likeCount         Int?
+  commentsCount     Int?
+  sharesCount       Int?
+  savedCount        Int?
+  reach             Int?
+  playsCount        Int? // reels video plays
+  avgWatchTimeMs    Int? // reels average watch time
+  totalInteractions Int?
+
+  @@index([mediaId])
+  @@index([snapshotId])
+}
