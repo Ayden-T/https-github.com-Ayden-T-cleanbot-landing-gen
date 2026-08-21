@@ -100,6 +100,9 @@ export async function POST() {
 
     return NextResponse.json({ ok: true, snapshotId: snapshot.id, mediaRefreshed: media.length });
   } catch (err) {
+    // Log the real cause server-side - the browser only ever sees a
+    // generic message for non-Instagram errors (e.g. a database issue).
+    console.error("Refresh failed:", err);
     const message =
       err instanceof InstagramApiError ? err.message : "Failed to refresh data from Instagram.";
     return NextResponse.json({ error: message }, { status: 502 });
